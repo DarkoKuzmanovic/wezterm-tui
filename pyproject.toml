@@ -6,6 +6,8 @@ build-backend = "hatchling.build"
 name = "wezterm-tui"
 version = "0.1.0"
 description = "TUI settings manager for WezTerm"
+license = "MIT"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "textual>=3.0.0",

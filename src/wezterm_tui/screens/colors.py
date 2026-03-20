@@ -29,22 +29,25 @@ class ColorsScreen(VerticalScroll):
         yield Input(placeholder="Search color schemes...", id="scheme-search")
         yield ListView(id="scheme-list")
 
-    def on_mount(self) -> None:
-        self._populate_list(self.schemes)
+    async def on_mount(self) -> None:
+        await self._populate_list(self.schemes)
 
-    def _populate_list(self, schemes: list[str]) -> None:
+    async def _populate_list(self, schemes: list[str]) -> None:
         list_view = self.query_one("#scheme-list", ListView)
-        list_view.clear()
+        await list_view.clear()
         self._displayed_schemes = schemes
+        items = []
         for idx, name in enumerate(schemes):
             prefix = " > " if name == self.current_scheme else "   "
-            list_view.append(ListItem(Static(f"{prefix}{name}"), id=f"scheme-idx-{idx}"))
+            items.append(ListItem(Static(f"{prefix}{name}"), id=f"scheme-idx-{idx}"))
+        if items:
+            await list_view.extend(items)
 
-    def on_input_changed(self, event: Input.Changed) -> None:
+    async def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "scheme-search":
             query = event.value.lower()
             filtered = [s for s in self.schemes if query in s.lower()]
-            self._populate_list(filtered)
+            await self._populate_list(filtered)
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         item_id = event.item.id or ""
@@ -54,12 +57,11 @@ class ColorsScreen(VerticalScroll):
             self.current_scheme = name
             self.settings.setdefault("colors", {})["color_scheme"] = name
             self.query_one("Label").update(f"Current: {name}")
-            search_val = self.query_one("#scheme-search", Input).value
-            if search_val:
-                filtered = [s for s in self.schemes if search_val.lower() in s.lower()]
-            else:
-                filtered = self.schemes
-            self._populate_list(filtered)
+            # Update prefix markers in-place instead of repopulating
+            for i, item in enumerate(self.query_one("#scheme-list", ListView).children):
+                scheme_name = self._displayed_schemes[i]
+                prefix = " > " if scheme_name == name else "   "
+                item.query_one(Static).update(f"{prefix}{scheme_name}")
 
     def collect_values(self) -> dict:
         return self.settings
