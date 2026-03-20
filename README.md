@@ -5,6 +5,8 @@ A terminal UI for managing [WezTerm](https://wezfurlong.org/wezterm/) settings. 
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
+![screenshot](docs/images/screenshot.png)
+
 ## Features
 
 - **10 settings categories** -- font, colors, window, tabs, cursor, scrollback, performance, keybindings, mouse, miscellaneous
