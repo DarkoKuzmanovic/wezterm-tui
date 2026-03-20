@@ -111,12 +111,12 @@ class WezTermSettingsApp(App):
             yield Button("Import [^I]", id="btn-import", variant="default")
         yield Footer()
 
-    def on_mount(self) -> None:
-        self._switch_screen("font")
+    async def on_mount(self) -> None:
+        await self._switch_screen("font")
         sidebar = self.query_one("#sidebar", Sidebar)
         sidebar.index = 0
 
-    def _switch_screen(self, category: str) -> None:
+    async def _switch_screen(self, category: str) -> None:
         self.active_category = category
         if self.current_screen is not None:
             try:
@@ -124,16 +124,16 @@ class WezTermSettingsApp(App):
             except Exception:
                 pass
         content = self.query_one("#content-area")
-        content.remove_children()
+        await content.remove_children()
         screen_class = SCREEN_MAP[category]
         self.current_screen = screen_class(self.settings, id="active-screen")
-        content.mount(self.current_screen)
+        await content.mount(self.current_screen)
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
+    async def on_list_view_selected(self, event: ListView.Selected) -> None:
         item_id = event.item.id
         if item_id and item_id.startswith("cat-"):
             category = item_id[4:]
-            self._switch_screen(category)
+            await self._switch_screen(category)
 
     def action_save(self) -> None:
         if self.current_screen:
@@ -143,16 +143,16 @@ class WezTermSettingsApp(App):
         self.lua_path.write_text(lua_code)
         self.notify("Settings saved!", title="WezTerm TUI")
 
-    def action_reset(self) -> None:
+    async def action_reset(self) -> None:
         self.settings = load_settings(self.json_path)
-        self._switch_screen(self.active_category)
+        await self._switch_screen(self.active_category)
         self.notify("Settings reset to last save.", title="WezTerm TUI")
 
-    def action_import_config(self) -> None:
+    async def action_import_config(self) -> None:
         wezterm_lua = self.config_dir / "wezterm.lua"
         if not wezterm_lua.exists():
             self.notify("No wezterm.lua found!", title="Import", severity="error")
             return
         self.settings = import_from_file(wezterm_lua)
-        self._switch_screen(self.active_category)
+        await self._switch_screen(self.active_category)
         self.notify("Imported from wezterm.lua!", title="Import")

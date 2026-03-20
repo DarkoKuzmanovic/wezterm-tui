@@ -17,6 +17,7 @@ class ColorsScreen(VerticalScroll):
         self.settings = settings
         self.schemes = self._load_schemes()
         self.current_scheme = settings.get("colors", {}).get("color_scheme", "")
+        self._displayed_schemes: list[str] = []
 
     def _load_schemes(self) -> list[str]:
         data_path = resources.files("wezterm_tui") / "data" / "color_schemes.json"
@@ -34,9 +35,10 @@ class ColorsScreen(VerticalScroll):
     def _populate_list(self, schemes: list[str]) -> None:
         list_view = self.query_one("#scheme-list", ListView)
         list_view.clear()
-        for name in schemes:
+        self._displayed_schemes = schemes
+        for idx, name in enumerate(schemes):
             prefix = " > " if name == self.current_scheme else "   "
-            list_view.append(ListItem(Static(f"{prefix}{name}"), id=f"scheme-{name}"))
+            list_view.append(ListItem(Static(f"{prefix}{name}"), id=f"scheme-idx-{idx}"))
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "scheme-search":
@@ -46,8 +48,9 @@ class ColorsScreen(VerticalScroll):
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         item_id = event.item.id or ""
-        if item_id.startswith("scheme-"):
-            name = item_id[7:]
+        if item_id.startswith("scheme-idx-"):
+            idx = int(item_id[len("scheme-idx-"):])
+            name = self._displayed_schemes[idx]
             self.current_scheme = name
             self.settings.setdefault("colors", {})["color_scheme"] = name
             self.query_one("Label").update(f"Current: {name}")
