@@ -1,5 +1,6 @@
 # tests/test_lua_gen.py
-from wezterm_tui.lua_gen import generate_lua
+import pytest
+from wezterm_tui.lua_gen import generate_lua, _lua_action
 from wezterm_tui.schema import get_defaults
 
 
@@ -53,3 +54,23 @@ def test_generate_lua_keybinding_with_table_arg():
     )
     lua = generate_lua(settings)
     assert 'wezterm.action.SplitHorizontal({ domain = "CurrentPaneDomain" })' in lua
+
+
+def test_lua_value_escapes_injection():
+    settings = _make_settings(
+        font={"family": 'Hack")\nos.execute("evil")\n--', "weight": "Regular",
+              "size": 12.0, "line_height": 1.0, "harfbuzz_features": []},
+    )
+    lua = generate_lua(settings)
+    # The font definition must stay on a single line (no literal newline break-out)
+    font_line = [l for l in lua.split("\n") if "M.font =" in l][0]
+    assert "os.execute" in font_line  # still present, but safely inside the string
+    # Quotes inside the string are escaped, so Lua cannot break out
+    assert '\\"' in font_line
+    # Newlines are escaped as \n literals, not actual line breaks
+    assert "\\n" in font_line
+
+
+def test_lua_action_rejects_invalid_action_name():
+    with pytest.raises(ValueError, match="Invalid action name"):
+        _lua_action({"action": 'Foo"; os.execute("evil")', "key": "x"})

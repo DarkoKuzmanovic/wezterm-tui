@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from wezterm_tui.schema import get_defaults
+from wezterm_tui.schema import SCHEMA, OptionType, get_defaults, validate_value as _validate
 
 CONFIG_FILENAME = "settings.json"
 CURRENT_VERSION = 1
@@ -29,6 +29,21 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+def _sanitize_settings(settings: dict) -> dict:
+    """Validate loaded settings against schema, replacing invalid values with defaults."""
+    defaults = get_defaults()
+    for opt in SCHEMA:
+        if opt.type == OptionType.KEYBINDINGS:
+            if not isinstance(settings.get("keybindings"), list):
+                settings["keybindings"] = defaults.get("keybindings", [])
+            continue
+        cat = settings.get(opt.category, {})
+        if opt.key in cat:
+            if not _validate(opt, cat[opt.key]):
+                cat[opt.key] = defaults.get(opt.category, {}).get(opt.key, opt.default)
+    return settings
+
+
 def load_settings(path: Path | None = None) -> dict[str, Any]:
     if path is None:
         path = get_config_dir() / CONFIG_FILENAME
@@ -38,7 +53,8 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
         return defaults
     with open(path) as f:
         saved = json.load(f)
-    return _deep_merge(defaults, saved)
+    merged = _deep_merge(defaults, saved)
+    return _sanitize_settings(merged)
 
 
 def save_settings(path: Path | None = None, settings: dict[str, Any] | None = None) -> None:

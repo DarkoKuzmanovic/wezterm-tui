@@ -38,3 +38,12 @@ def test_validate_value_bool():
     tab_opt = next(o for o in SCHEMA if o.key == "enable_tab_bar")
     assert validate_value(tab_opt, True) is True
     assert validate_value(tab_opt, "yes") is False
+
+
+def test_get_defaults_returns_independent_copies():
+    a = get_defaults()
+    b = get_defaults()
+    a["keybindings"].append({"key": "x"})
+    assert b["keybindings"] == []  # Should not be contaminated
+    a["window"]["padding"]["left"] = 999
+    assert b["window"]["padding"]["left"] == 0

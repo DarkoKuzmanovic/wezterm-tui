@@ -1,6 +1,8 @@
 """Generate settings.lua from a settings dict."""
 
 from __future__ import annotations
+
+import re
 from typing import Any
 
 HEADER = """\
@@ -57,7 +59,12 @@ def _lua_value(value: Any) -> str:
             return f"{value:.1f}"
         return str(value)
     if isinstance(value, str):
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = (value
+                   .replace("\\", "\\\\")
+                   .replace('"', '\\"')
+                   .replace("\n", "\\n")
+                   .replace("\r", "\\r")
+                   .replace("\0", "\\0"))
         return f'"{escaped}"'
     if isinstance(value, list):
         if not value:
@@ -70,13 +77,18 @@ def _lua_value(value: Any) -> str:
     return str(value)
 
 
+_ACTION_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def _lua_action(binding: dict) -> str:
     action = binding["action"]
+    if not _ACTION_RE.match(action):
+        raise ValueError(f"Invalid action name: {action!r}")
     args = binding.get("args")
     if args is None:
         return f"wezterm.action.{action}"
     if isinstance(args, str):
-        return f'wezterm.action.{action}("{args}")'
+        return f'wezterm.action.{action}({_lua_value(args)})'
     if isinstance(args, dict):
         parts = [f"{k} = {_lua_value(v)}" for k, v in args.items()]
         return f"wezterm.action.{action}({{ {', '.join(parts)} }})"
@@ -95,7 +107,7 @@ def generate_lua(settings: dict) -> str:
     family = font.get("family", "JetBrains Mono")
     weight = font.get("weight", "Regular")
     lines.append("-- Font")
-    lines.append(f'M.font = wezterm.font("{family}", {{ weight = "{weight}" }})')
+    lines.append(f'M.font = wezterm.font({_lua_value(family)}, {{ weight = {_lua_value(weight)} }})')
     if "size" in font:
         lines.append(f"M.font_size = {_lua_value(font['size'])}")
     if "line_height" in font:
@@ -125,9 +137,9 @@ def generate_lua(settings: dict) -> str:
             mods = binding.get("mods", "")
             action_lua = _lua_action(binding)
             if mods:
-                lines.append(f'  {{ key = "{key}", mods = "{mods}", action = {action_lua} }},')
+                lines.append(f'  {{ key = {_lua_value(key)}, mods = {_lua_value(mods)}, action = {action_lua} }},')
             else:
-                lines.append(f'  {{ key = "{key}", action = {action_lua} }},')
+                lines.append(f'  {{ key = {_lua_value(key)}, action = {action_lua} }},')
         lines.append("}")
         lines.append("")
 

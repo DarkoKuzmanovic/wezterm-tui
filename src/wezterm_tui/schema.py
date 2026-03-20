@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -124,9 +125,9 @@ def get_defaults() -> dict:
     result: dict[str, Any] = {}
     for opt in SCHEMA:
         if opt.type == OptionType.KEYBINDINGS:
-            result["keybindings"] = opt.default
+            result["keybindings"] = copy.deepcopy(opt.default)
             continue
-        result.setdefault(opt.category, {})[opt.key] = opt.default
+        result.setdefault(opt.category, {})[opt.key] = copy.deepcopy(opt.default)
     return result
 
 
