@@ -1,6 +1,8 @@
 """Screen registry — maps category IDs to screen classes."""
 
 from wezterm_tui.screens.base import SettingsScreen
+from wezterm_tui.screens.colors import ColorsScreen
+from wezterm_tui.screens.keybindings import KeybindingsScreen
 
 
 def _make_simple_screen(category: str) -> type[SettingsScreen]:
@@ -12,13 +14,11 @@ def _make_simple_screen(category: str) -> type[SettingsScreen]:
 
 
 FontScreen = _make_simple_screen("font")
-ColorsScreen = _make_simple_screen("colors")
 WindowScreen = _make_simple_screen("window")
 TabsScreen = _make_simple_screen("tabs")
 CursorScreen = _make_simple_screen("cursor")
 ScrollbackScreen = _make_simple_screen("scrollback")
 PerformanceScreen = _make_simple_screen("performance")
-KeybindingsScreen = _make_simple_screen("keybindings")
 MouseScreen = _make_simple_screen("mouse")
 MiscScreen = _make_simple_screen("misc")
 
