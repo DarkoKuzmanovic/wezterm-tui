@@ -6,50 +6,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-from wezterm_tui.schema import get_defaults
+from wezterm_tui.schema import OptionType, SCHEMA, get_defaults, get_lua_key_to_json
 
-_LUA_KEY_TO_JSON: dict[str, tuple[str, str]] = {
-    "window_padding": ("window", "padding"),
-    "window_decorations": ("window", "decorations"),
-    "window_background_opacity": ("window", "background_opacity"),
-    "initial_cols": ("window", "initial_cols"),
-    "initial_rows": ("window", "initial_rows"),
-    "color_scheme": ("colors", "color_scheme"),
-    "enable_tab_bar": ("tabs", "enable_tab_bar"),
-    "use_fancy_tab_bar": ("tabs", "use_fancy_tab_bar"),
-    "tab_bar_at_bottom": ("tabs", "tab_bar_at_bottom"),
-    "hide_tab_bar_if_only_one_tab": ("tabs", "hide_tab_bar_if_only_one_tab"),
-    "show_new_tab_button_in_tab_bar": ("tabs", "show_new_tab_button_in_tab_bar"),
-    "show_close_tab_button_in_tabs": ("tabs", "show_close_tab_button_in_tabs"),
-    "show_tab_index_in_tab_bar": ("tabs", "show_tab_index_in_tab_bar"),
-    "tab_max_width": ("tabs", "tab_max_width"),
-    "default_cursor_style": ("cursor", "default_cursor_style"),
-    "cursor_blink_rate": ("cursor", "cursor_blink_rate"),
-    "cursor_blink_ease_in": ("cursor", "cursor_blink_ease_in"),
-    "cursor_blink_ease_out": ("cursor", "cursor_blink_ease_out"),
-    "cursor_thickness": ("cursor", "cursor_thickness"),
-    "scrollback_lines": ("scrollback", "scrollback_lines"),
-    "enable_scroll_bar": ("scrollback", "enable_scroll_bar"),
-    "scroll_to_bottom_on_input": ("scrollback", "scroll_to_bottom_on_input"),
-    "min_scroll_bar_height": ("scrollback", "min_scroll_bar_height"),
-    "front_end": ("performance", "front_end"),
-    "max_fps": ("performance", "max_fps"),
-    "animation_fps": ("performance", "animation_fps"),
-    "webgpu_power_preference": ("performance", "webgpu_power_preference"),
-    "pane_focus_follows_mouse": ("mouse", "pane_focus_follows_mouse"),
-    "hide_mouse_cursor_when_typing": ("mouse", "hide_mouse_cursor_when_typing"),
-    "swallow_mouse_click_on_pane_focus": ("mouse", "swallow_mouse_click_on_pane_focus"),
-    "swallow_mouse_click_on_window_focus": ("mouse", "swallow_mouse_click_on_window_focus"),
-    "mouse_wheel_scrolls_tabs": ("mouse", "mouse_wheel_scrolls_tabs"),
-    "audible_bell": ("misc", "audible_bell"),
-    "check_for_updates": ("misc", "check_for_updates"),
-    "automatically_reload_config": ("misc", "automatically_reload_config"),
-    "term": ("misc", "term"),
-    "exit_behavior": ("misc", "exit_behavior"),
-    "canonicalize_pasted_newlines": ("misc", "canonicalize_pasted_newlines"),
-    "enable_wayland": ("misc", "enable_wayland"),
-    "enable_kitty_keyboard": ("misc", "enable_kitty_keyboard"),
-}
+_LUA_KEY_TO_JSON = get_lua_key_to_json()
 
 _RE_FONT = re.compile(
     r'config\.font\s*=\s*wezterm\.font\(\s*"([^"]+)"\s*,\s*\{\s*weight\s*=\s*"([^"]+)"\s*\}\s*\)'
@@ -67,8 +26,9 @@ _RE_PADDING = re.compile(
 _RE_QUOTED_STRING = re.compile(r'"([^"]*)"')
 
 _STRING_LIST_KEYS: dict[str, tuple[str, str]] = {
-    "quick_select_patterns": ("misc", "quick_select_patterns"),
-    "harfbuzz_features": ("font", "harfbuzz_features"),
+    (opt.lua_key or opt.key): (opt.category, opt.key)
+    for opt in SCHEMA
+    if opt.type == OptionType.STRING_LIST
 }
 
 _RE_STRING_LIST_START = re.compile(r'config\.(\w+)\s*=\s*\{')

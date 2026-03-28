@@ -107,6 +107,7 @@ class WezTermSettingsApp(App):
 
     def __init__(self):
         super().__init__()
+        self._theme_ready = False
         self.config_dir = get_config_dir()
         self.json_path = self.config_dir / "settings.json"
         self.lua_path = self.config_dir / "settings.lua"
@@ -131,9 +132,18 @@ class WezTermSettingsApp(App):
         yield Footer()
 
     async def on_mount(self) -> None:
+        saved_theme = self.settings.get("_app", {}).get("theme")
+        if saved_theme:
+            self.theme = saved_theme
+        self._theme_ready = True
         await self._switch_screen("font")
         sidebar = self.query_one("#sidebar", Sidebar)
         sidebar.index = 0
+
+    def watch_theme(self, theme: str) -> None:
+        if self._theme_ready:
+            self.settings.setdefault("_app", {})["theme"] = theme
+            save_settings(self.json_path, self.settings)
 
     async def _switch_screen(self, category: str, _skip_history: bool = False) -> None:
         self.active_category = category

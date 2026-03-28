@@ -5,6 +5,7 @@ All notable changes to wezterm-tui will be documented in this file.
 ## [1.0.0] - 2026-03-28
 
 ### Added
+
 - Settings profiles: save/load named configuration profiles (`Ctrl+P`). Stored as JSON in `~/.config/wezterm/profiles/`.
 - Undo/redo: track setting changes and revert with `Ctrl+Z` / `Ctrl+Y`.
 - Settings diff view: review pending changes before saving with `Ctrl+D`.
@@ -15,14 +16,16 @@ All notable changes to wezterm-tui will be documented in this file.
 - Lazy palette loading: color scheme palettes are loaded on first Colors screen visit instead of during construction.
 
 ### Changed
+
 - Lua key mappings are now derived from schema instead of maintained as separate dicts.
 - Bare `except Exception: pass` blocks replaced with specific exception handling and user notifications.
 - Preview prompt text uses generic `user@host` instead of hardcoded values.
 - Keybinding actions consolidated from three lists into a single `ACTIONS` dict.
 
-## [0.1.0] - 2025-01-01
+## [0.1.0] - 2026-03-20
 
 ### Added
+
 - Initial release with 10 settings categories.
 - Color scheme browser with live preview.
 - Keybindings editor.
