@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Header, Static, Button, ListItem, ListView
+from textual.widgets import Footer, Header, Static, Button, ListItem, ListView, Input, Label
 from textual.binding import Binding
 
 from wezterm_tui.config import load_settings, save_settings, get_config_dir
+from wezterm_tui.profiles import list_profiles, save_profile, load_profile
 from wezterm_tui.lua_gen import generate_lua
 from wezterm_tui.importer import import_from_file
 from wezterm_tui.schema import CATEGORIES
@@ -96,6 +97,7 @@ class WezTermSettingsApp(App):
         Binding("ctrl+r", "reset", "Reset"),
         Binding("ctrl+i", "import_config", "Import"),
         Binding("ctrl+d", "show_diff", "Diff"),
+        Binding("ctrl+p", "profile_load", "Load Profile"),
         Binding("ctrl+z", "undo", "Undo"),
         Binding("ctrl+y", "redo", "Redo"),
         Binding("ctrl+q", "quit", "Quit"),
@@ -122,6 +124,7 @@ class WezTermSettingsApp(App):
             yield Button("Reset [^R]", id="btn-reset", variant="warning")
             yield Button("Import [^I]", id="btn-import", variant="default")
             yield Button("Diff [^D]", id="btn-diff", variant="default")
+            yield Button("Profiles [^P]", id="btn-profiles", variant="default")
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -204,3 +207,88 @@ class WezTermSettingsApp(App):
             self.notify("No changes since last save.", title="Diff")
         else:
             self.notify(text, title=f"Changes ({len(changes)})", timeout=10)
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-save":
+            self.action_save()
+        elif event.button.id == "btn-reset":
+            await self.action_reset()
+        elif event.button.id == "btn-import":
+            await self.action_import_config()
+        elif event.button.id == "btn-diff":
+            self.action_show_diff()
+        elif event.button.id == "btn-profiles":
+            await self.action_profile_load()
+
+    async def action_profile_load(self) -> None:
+        from textual.screen import ModalScreen
+
+        if self.current_screen:
+            self.current_screen.collect_values()
+
+        profiles = list_profiles()
+        app_ref = self  # capture for callbacks
+
+        class ProfilePicker(ModalScreen):
+            DEFAULT_CSS = """
+            ProfilePicker {
+                align: center middle;
+            }
+            #profile-dialog {
+                width: 50;
+                height: auto;
+                max-height: 80%;
+                border: thick $accent;
+                background: $surface;
+                padding: 1 2;
+            }
+            """
+
+            def compose(self):
+                with Vertical(id="profile-dialog"):
+                    yield Static(" Load Profile ", classes="screen-title")
+                    if profiles:
+                        yield ListView(
+                            *[ListItem(Static(f"  {p}"), id=f"prof-{p}") for p in profiles],
+                            id="profile-list",
+                        )
+                    else:
+                        yield Static("No saved profiles.")
+                    yield Static("")
+                    yield Label("Save current as:")
+                    yield Input(id="profile-save-name", placeholder="e.g. coding")
+                    with Horizontal():
+                        yield Button("Save", id="prof-save", variant="success")
+                        yield Button("Close", id="prof-cancel", variant="error")
+
+            def on_list_view_selected(self, event):
+                name = event.item.id
+                if name and name.startswith("prof-"):
+                    self.dismiss(name[5:])
+
+            def on_button_pressed(self, event):
+                if event.button.id == "prof-cancel":
+                    self.dismiss(None)
+                elif event.button.id == "prof-save":
+                    name_input = self.query_one("#profile-save-name", Input)
+                    name = name_input.value.strip()
+                    if name:
+                        save_profile(name, app_ref.settings)
+                        app_ref.notify(f"Saved profile: {name}", title="Profiles")
+                        self.dismiss(None)
+
+        def on_profile_selected(name: str | None) -> None:
+            if name is None:
+                return
+            data = load_profile(name)
+            if data:
+                self.settings = data
+                self.history.push(self.settings)
+                self.notify(f"Loaded profile: {name}", title="Profiles")
+
+                async def reload():
+                    await self._switch_screen(self.active_category, _skip_history=True)
+
+                self.call_later(reload)
+
+        self.push_screen(ProfilePicker(), on_profile_selected)
