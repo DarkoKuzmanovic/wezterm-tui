@@ -3,24 +3,40 @@
 from __future__ import annotations
 
 import json as json_mod
+import re
 
 from textual.containers import VerticalScroll, Horizontal
 from textual.widgets import Static, Button, DataTable, Input, Select, Label
 
-ACTIONS_NO_ARGS = [
-    "IncreaseFontSize", "DecreaseFontSize", "ResetFontSize",
-    "Copy", "Paste", "ToggleFullScreen",
-    "ShowLauncher", "ShowTabNavigator", "ActivateCommandPalette",
-    "QuickSelect", "Nop", "DisableDefaultAssignment",
-    "ScrollToTop", "ScrollToBottom",
-    "SpawnWindow", "ReloadConfiguration",
-]
+ACTIONS: dict[str, str] = {
+    # No arguments
+    "ActivateCommandPalette": "none",
+    "Copy": "none",
+    "DecreaseFontSize": "none",
+    "DisableDefaultAssignment": "none",
+    "IncreaseFontSize": "none",
+    "Nop": "none",
+    "Paste": "none",
+    "QuickSelect": "none",
+    "ReloadConfiguration": "none",
+    "ResetFontSize": "none",
+    "ScrollToBottom": "none",
+    "ScrollToTop": "none",
+    "ShowLauncher": "none",
+    "ShowTabNavigator": "none",
+    "SpawnWindow": "none",
+    "ToggleFullScreen": "none",
+    # String argument
+    "ActivatePaneDirection": "string",
+    "PasteFrom": "string",
+    # Table argument
+    "CloseCurrentPane": "table",
+    "SendKey": "table",
+    "SplitHorizontal": "table",
+    "SplitVertical": "table",
+}
 
-ACTIONS_STRING_ARG = ["ActivatePaneDirection", "PasteFrom"]
-
-ACTIONS_TABLE_ARG = ["SplitHorizontal", "SplitVertical", "CloseCurrentPane", "SendKey"]
-
-ALL_ACTIONS = sorted(ACTIONS_NO_ARGS + ACTIONS_STRING_ARG + ACTIONS_TABLE_ARG)
+ALL_ACTIONS = sorted(ACTIONS) + ["Other..."]
 
 MODIFIER_OPTIONS = ["CTRL", "SHIFT", "ALT", "SUPER", "CTRL|SHIFT", "CTRL|ALT", "ALT|SHIFT"]
 
@@ -52,6 +68,11 @@ class KeybindingsScreen(VerticalScroll):
             [(a, a) for a in ALL_ACTIONS],
             id="kb-action", allow_blank=False, value=ALL_ACTIONS[0],
         )
+        yield Input(
+            id="kb-custom-action",
+            placeholder="e.g. MyCustomAction",
+            classes="hidden",
+        )
         yield Label("Args (optional)")
         yield Input(id="kb-args", placeholder='e.g. Left or {"domain": "CurrentPaneDomain"}')
         yield Button("Add Keybinding", id="kb-confirm-add", variant="primary")
@@ -71,6 +92,14 @@ class KeybindingsScreen(VerticalScroll):
                 args = kb["args"]
                 args_str = str(args) if not isinstance(args, str) else args
             table.add_row(kb.get("key", ""), kb.get("mods", ""), kb.get("action", ""), args_str)
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "kb-action":
+            custom = self.query_one("#kb-custom-action", Input)
+            if event.value == "Other...":
+                custom.remove_class("hidden")
+            else:
+                custom.add_class("hidden")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "kb-delete":
@@ -96,7 +125,13 @@ class KeybindingsScreen(VerticalScroll):
                 binding["mods"] = mods
 
             action = action_select.value
-            if action is not Select.BLANK:
+            if action == "Other...":
+                custom_input = self.query_one("#kb-custom-action", Input)
+                action = custom_input.value.strip()
+                if not action or not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", action):
+                    self.notify("Invalid action name", severity="error")
+                    return
+            if action is not Select.BLANK and action:
                 binding["action"] = action
 
             args_raw = args_input.value.strip()

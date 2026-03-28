@@ -84,6 +84,9 @@ class WezTermSettingsApp(App):
     #footer-bar Button {
         margin: 0 1;
     }
+    .hidden {
+        display: none;
+    }
     """
 
     BINDINGS = [
