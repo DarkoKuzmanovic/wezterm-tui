@@ -10,11 +10,22 @@ A terminal UI for managing [WezTerm](https://wezfurlong.org/wezterm/) settings. 
 ## Features
 
 - **10 settings categories** -- font, colors, window, tabs, cursor, scrollback, performance, keybindings, mouse, miscellaneous
-- **Color scheme browser** -- searchable selector with live in-app preview for built-in WezTerm schemes
-- **Keybindings editor** -- table-based UI for adding, editing, and deleting key mappings
+- **Color scheme browser** -- searchable selector with live preview showing ANSI swatches, bright colors, and a sample prompt
+- **Live palette extraction** -- pulls all color schemes directly from the WezTerm binary; falls back to 217 bundled schemes when WezTerm is unavailable
+- **Keybindings editor** -- table-based UI for adding, editing, and deleting key mappings with 16+ WezTerm actions
 - **Import existing config** -- reads your current `wezterm.lua` and imports settings
 - **Lua generation** -- saves a clean, commented `settings.lua` you can `require()` from your config
-- **Validation** -- type checking, range constraints, and enum validation on all settings
+- **Validation** -- type checking, range constraints, and enum validation on all 42 settings
+- **Safe saves** -- atomic writes with `.json.bak` backup before each save
+- **Settings sanitization** -- invalid or missing values are auto-corrected to defaults on load
+
+## Install
+
+```bash
+curl -sS https://raw.githubusercontent.com/DarkoKuzmanovic/wezterm-tui/master/install.sh | sh
+```
+
+Requires Python 3.12+. The installer uses [uv](https://docs.astral.sh/uv/), [pipx](https://pipx.pypa.io/), or pip (in that order of preference).
 
 ## Quick Start
 
