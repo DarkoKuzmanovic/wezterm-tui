@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from textual.containers import VerticalScroll
+from textual.css.query import NoMatches
+from textual.validation import Number
 from textual.widgets import Static, Input, Select, Switch, Label
 
 from wezterm_tui.schema import Option, OptionType, get_category_options
@@ -42,8 +44,22 @@ class SettingsScreen(VerticalScroll):
             case OptionType.ENUM:
                 options = [(v, v) for v in option.enum_values]
                 yield Select(options, value=value, id=field_id, allow_blank=False)
-            case OptionType.INT | OptionType.FLOAT:
-                yield Input(value=str(value), id=field_id)
+            case OptionType.INT:
+                validators = []
+                if option.min_value is not None or option.max_value is not None:
+                    validators.append(Number(
+                        minimum=option.min_value,
+                        maximum=option.max_value,
+                    ))
+                yield Input(value=str(value), id=field_id, validators=validators)
+            case OptionType.FLOAT:
+                validators = []
+                if option.min_value is not None or option.max_value is not None:
+                    validators.append(Number(
+                        minimum=option.min_value,
+                        maximum=option.max_value,
+                    ))
+                yield Input(value=str(value), id=field_id, validators=validators)
             case OptionType.STRING:
                 yield Input(value=str(value), id=field_id)
             case OptionType.STRING_LIST:
@@ -99,6 +115,11 @@ class SettingsScreen(VerticalScroll):
                             except ValueError:
                                 pad[side] = 0
                         self.set_value(option, pad)
-            except Exception:
-                pass
+            except NoMatches:
+                pass  # Widget not mounted yet (e.g. during screen transition)
+            except (ValueError, TypeError) as exc:
+                self.notify(
+                    f"Invalid value for {option.label}: {exc}",
+                    severity="warning",
+                )
         return self.settings

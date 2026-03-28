@@ -64,6 +64,9 @@ class WezTermSettingsApp(App):
     Input {
         margin-bottom: 0;
     }
+    Input.-invalid {
+        border: tall $error;
+    }
     Switch {
         margin-bottom: 0;
     }
@@ -121,8 +124,12 @@ class WezTermSettingsApp(App):
         if self.current_screen is not None:
             try:
                 self.current_screen.collect_values()
-            except Exception:
-                pass
+            except Exception as exc:
+                self.notify(
+                    f"Could not save values: {exc}",
+                    title="Warning",
+                    severity="warning",
+                )
         content = self.query_one("#content-area")
         await content.remove_children()
         screen_class = SCREEN_MAP[category]
