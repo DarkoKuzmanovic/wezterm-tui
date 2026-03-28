@@ -1,6 +1,7 @@
 import json
 
 import pytest
+
 from wezterm_tui.app import WezTermSettingsApp
 from wezterm_tui.config import load_settings, save_settings
 from wezterm_tui.lua_gen import generate_lua
@@ -36,9 +37,12 @@ async def test_screen_renders(category):
 
 async def test_color_preview_updates_on_highlight(monkeypatch):
     from textual.widgets import ListView
+
     from wezterm_tui.screens import colors as colors_module
 
-    monkeypatch.setattr(colors_module, "load_scheme_names", lambda: ["Dracula", "Gruvbox Dark"])
+    monkeypatch.setattr(
+        colors_module, "load_scheme_names", lambda: ["Dracula", "Gruvbox Dark"]
+    )
     monkeypatch.setattr(
         colors_module,
         "load_scheme_palettes",
@@ -90,6 +94,46 @@ async def test_color_preview_updates_on_highlight(monkeypatch):
         assert app.settings["colors"]["color_scheme"] == "Gruvbox Dark"
 
 
+async def test_color_search_is_debounced(monkeypatch):
+    from textual.widgets import Input
+
+    from wezterm_tui.screens import colors as colors_module
+
+    monkeypatch.setattr(
+        colors_module,
+        "load_scheme_names",
+        lambda: ["Dracula", "Gruvbox Dark", "Night Owl"],
+    )
+    monkeypatch.setattr(colors_module, "load_scheme_palettes", lambda: {})
+
+    app = WezTermSettingsApp()
+
+    async with app.run_test() as pilot:
+        await app._switch_screen("colors")
+        await pilot.pause()
+
+        screen = app.current_screen
+        screen.SEARCH_DEBOUNCE_SECONDS = 0.02
+        calls = []
+
+        async def capture(schemes):
+            calls.append(list(schemes))
+
+        monkeypatch.setattr(screen, "_populate_list", capture)
+        search = screen.query_one("#scheme-search", Input)
+
+        await screen.on_input_changed(Input.Changed(search, "g"))
+        await screen.on_input_changed(Input.Changed(search, "gr"))
+        await screen.on_input_changed(Input.Changed(search, "gru"))
+        await pilot.pause(0.01)
+
+        assert calls == []
+
+        await pilot.pause(0.03)
+
+        assert calls == [["Gruvbox Dark"]]
+
+
 def test_full_roundtrip(tmp_path):
     """Save settings -> generate Lua -> verify content."""
     json_path = tmp_path / "settings.json"
@@ -101,7 +145,12 @@ def test_full_roundtrip(tmp_path):
     settings["colors"]["color_scheme"] = "Dracula"
     settings["window"]["background_opacity"] = 0.9
     settings["keybindings"] = [
-        {"key": "t", "mods": "CTRL", "action": "SpawnTab", "args": {"domain_name": "local"}},
+        {
+            "key": "t",
+            "mods": "CTRL",
+            "action": "SpawnTab",
+            "args": {"domain_name": "local"},
+        },
     ]
 
     save_settings(json_path, settings)

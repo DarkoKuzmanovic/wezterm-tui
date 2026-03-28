@@ -6,6 +6,7 @@ from rich.console import Group
 from rich.panel import Panel
 from rich.text import Text
 from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.timer import Timer
 from textual.widgets import Input, Label, ListItem, ListView, Static
 
 from wezterm_tui.color_schemes import load_scheme_names, load_scheme_palettes
@@ -13,6 +14,7 @@ from wezterm_tui.color_schemes import load_scheme_names, load_scheme_palettes
 
 class ColorsScreen(VerticalScroll):
     CATEGORY = "colors"
+    SEARCH_DEBOUNCE_SECONDS = 0.15
     DEFAULT_CSS = """
     ColorsScreen {
         height: 1fr;
@@ -48,6 +50,8 @@ class ColorsScreen(VerticalScroll):
         self.current_scheme = settings.get("colors", {}).get("color_scheme", "")
         self.preview_scheme = self.current_scheme
         self._displayed_schemes: list[str] = []
+        self._pending_query = ""
+        self._search_timer: Timer | None = None
 
     def compose(self):
         yield Static(" COLOR SCHEME ", classes="screen-title")
@@ -79,9 +83,19 @@ class ColorsScreen(VerticalScroll):
 
     async def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "scheme-search":
-            query = event.value.lower()
-            filtered = [s for s in self.schemes if query in s.lower()]
-            await self._populate_list(filtered)
+            self._pending_query = event.value.lower()
+            if self._search_timer is None:
+                self._search_timer = self.set_timer(
+                    self.SEARCH_DEBOUNCE_SECONDS,
+                    self._apply_search,
+                )
+            else:
+                self._search_timer.reset()
+
+    async def _apply_search(self) -> None:
+        self._search_timer = None
+        filtered = [s for s in self.schemes if self._pending_query in s.lower()]
+        await self._populate_list(filtered)
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.item is None:
@@ -106,7 +120,7 @@ class ColorsScreen(VerticalScroll):
     def _name_from_item_id(self, item_id: str | None) -> str | None:
         if not item_id or not item_id.startswith("scheme-idx-"):
             return None
-        idx = int(item_id[len("scheme-idx-"):])
+        idx = int(item_id[len("scheme-idx-") :])
         if idx >= len(self._displayed_schemes):
             return None
         return self._displayed_schemes[idx]
@@ -118,15 +132,25 @@ class ColorsScreen(VerticalScroll):
             prefix = " > " if scheme_name == self.current_scheme else "   "
             item.query_one(Static).update(f"{prefix}{scheme_name}")
 
-    def _update_preview(self, scheme_name: str | None, message: str | None = None) -> None:
-        self.query_one("#scheme-preview", Static).update(self._render_preview(scheme_name, message))
+    def _update_preview(
+        self, scheme_name: str | None, message: str | None = None
+    ) -> None:
+        self.query_one("#scheme-preview", Static).update(
+            self._render_preview(scheme_name, message)
+        )
 
-    def _render_preview(self, scheme_name: str | None, message: str | None = None) -> Panel:
+    def _render_preview(
+        self, scheme_name: str | None, message: str | None = None
+    ) -> Panel:
         if message:
             return Panel(message, title=" Preview ", border_style="yellow")
 
         if not scheme_name:
-            return Panel("Select a color scheme to preview it.", title=" Preview ", border_style="yellow")
+            return Panel(
+                "Select a color scheme to preview it.",
+                title=" Preview ",
+                border_style="yellow",
+            )
 
         palette = self.scheme_palettes.get(scheme_name)
         if palette is None:
@@ -141,8 +165,16 @@ class ColorsScreen(VerticalScroll):
         cursor = str(palette.get("cursor_bg") or foreground)
         selection_bg = str(palette.get("selection_bg") or "#3a3a3a")
         selection_fg = str(palette.get("selection_fg") or foreground)
-        accent_colors = list(palette.get("brights") or []) or list(palette.get("ansi") or [])
-        accent = str(accent_colors[4] if len(accent_colors) > 4 else accent_colors[0] if accent_colors else foreground)
+        accent_colors = list(palette.get("brights") or []) or list(
+            palette.get("ansi") or []
+        )
+        accent = str(
+            accent_colors[4]
+            if len(accent_colors) > 4
+            else accent_colors[0]
+            if accent_colors
+            else foreground
+        )
 
         sample_header = Text("Terminal Sample", style=f"bold {foreground}")
         prompt = Text()
@@ -175,7 +207,17 @@ class ColorsScreen(VerticalScroll):
         codes.append(foreground, style=foreground)
 
         return Panel(
-            Group(sample_header, prompt, command, selection, Text(""), swatches, brights, Text(""), codes),
+            Group(
+                sample_header,
+                prompt,
+                command,
+                selection,
+                Text(""),
+                swatches,
+                brights,
+                Text(""),
+                codes,
+            ),
             title=f" Preview: {scheme_name} ",
             border_style=accent,
             style=f"{foreground} on {background}",
