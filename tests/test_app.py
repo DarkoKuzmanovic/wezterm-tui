@@ -34,6 +34,62 @@ async def test_screen_renders(category):
         assert content.children
 
 
+async def test_color_preview_updates_on_highlight(monkeypatch):
+    from textual.widgets import ListView
+    from wezterm_tui.screens import colors as colors_module
+
+    monkeypatch.setattr(colors_module, "load_scheme_names", lambda: ["Dracula", "Gruvbox Dark"])
+    monkeypatch.setattr(
+        colors_module,
+        "load_scheme_palettes",
+        lambda: {
+            "Dracula": {
+                "background": "#282a36",
+                "foreground": "#f8f8f2",
+                "selection_bg": "#44475a",
+                "selection_fg": "#f8f8f2",
+                "cursor_bg": "#f8f8f2",
+                "ansi": ["#000000"] * 8,
+                "brights": ["#ffffff"] * 8,
+            },
+            "Gruvbox Dark": {
+                "background": "#282828",
+                "foreground": "#ebdbb2",
+                "selection_bg": "#504945",
+                "selection_fg": "#ebdbb2",
+                "cursor_bg": "#fabd2f",
+                "ansi": ["#111111"] * 8,
+                "brights": ["#eeeeee"] * 8,
+            },
+        },
+    )
+
+    app = WezTermSettingsApp()
+    app.settings["colors"]["color_scheme"] = "Dracula"
+
+    async with app.run_test() as pilot:
+        await app._switch_screen("colors")
+        await pilot.pause()
+
+        screen = app.current_screen
+        assert screen.preview_scheme == "Dracula"
+        assert screen.current_scheme == "Dracula"
+
+        list_view = screen.query_one("#scheme-list", ListView)
+        list_view.focus()
+        list_view.index = 1
+        await pilot.pause()
+
+        assert screen.preview_scheme == "Gruvbox Dark"
+        assert screen.current_scheme == "Dracula"
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert screen.current_scheme == "Gruvbox Dark"
+        assert app.settings["colors"]["color_scheme"] == "Gruvbox Dark"
+
+
 def test_full_roundtrip(tmp_path):
     """Save settings -> generate Lua -> verify content."""
     json_path = tmp_path / "settings.json"

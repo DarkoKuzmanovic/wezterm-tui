@@ -10,7 +10,7 @@ A terminal UI for managing [WezTerm](https://wezfurlong.org/wezterm/) settings. 
 ## Features
 
 - **10 settings categories** -- font, colors, window, tabs, cursor, scrollback, performance, keybindings, mouse, miscellaneous
-- **Color scheme browser** -- searchable selector with 76+ built-in WezTerm schemes
+- **Color scheme browser** -- searchable selector with live in-app preview for built-in WezTerm schemes
 - **Keybindings editor** -- table-based UI for adding, editing, and deleting key mappings
 - **Import existing config** -- reads your current `wezterm.lua` and imports settings
 - **Lua generation** -- saves a clean, commented `settings.lua` you can `require()` from your config
@@ -26,7 +26,9 @@ cd wezterm-tui
 
 The `run.sh` script creates a virtual environment, installs dependencies, and launches the app automatically.
 
-### Manual Install
+### Install For Development
+
+If you are working on the project and do not need a global command, use the local virtual environment:
 
 ```bash
 python3 -m venv .venv
@@ -35,7 +37,29 @@ pip install -e .
 wezterm-tui
 ```
 
-Or with [uv](https://docs.astral.sh/uv/):
+### Install As A Global Command
+
+If you want to run `wezterm-tui` from any directory in your terminal, install the console script into your user environment.
+
+With [uv](https://docs.astral.sh/uv/):
+
+```bash
+cd ~/source/wezterm-tui
+uv tool install --editable .
+wezterm-tui
+```
+
+With `pip`:
+
+```bash
+cd ~/source/wezterm-tui
+python3 -m pip install --user -e .
+wezterm-tui
+```
+
+Make sure `~/.local/bin` is in your `PATH`.
+
+### Run Without Installing
 
 ```bash
 uv run wezterm-tui
@@ -44,6 +68,8 @@ uv run wezterm-tui
 ## Usage
 
 Navigate categories with the sidebar. Edit settings in the main panel.
+
+In Colors, move through the scheme list to preview a theme before selecting it.
 
 | Shortcut | Action                    |
 | -------- | ------------------------- |
