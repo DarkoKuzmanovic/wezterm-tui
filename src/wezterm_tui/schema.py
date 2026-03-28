@@ -30,6 +30,7 @@ class Option:
     enum_values: list[str] = field(default_factory=list)
     min_value: float | None = None
     max_value: float | None = None
+    lua_key: str | None = None  # Lua config key; defaults to same as `key`
 
 
 SCHEMA: list[Option] = [
@@ -47,12 +48,17 @@ SCHEMA: list[Option] = [
            description="WezTerm built-in color scheme name"),
 
     # Window
-    Option("padding", "window", "Window Padding", OptionType.PADDING, {"left": 0, "right": 0, "top": 0, "bottom": 0}),
+    Option("padding", "window", "Window Padding", OptionType.PADDING, {"left": 0, "right": 0, "top": 0, "bottom": 0},
+           lua_key="window_padding"),
     Option("decorations", "window", "Window Decorations", OptionType.ENUM, "TITLE | RESIZE",
-           enum_values=["NONE", "TITLE", "RESIZE", "TITLE | RESIZE", "INTEGRATED_BUTTONS|RESIZE"]),
-    Option("background_opacity", "window", "Background Opacity", OptionType.FLOAT, 1.0, min_value=0.0, max_value=1.0),
+           enum_values=["NONE", "TITLE", "RESIZE", "TITLE | RESIZE", "INTEGRATED_BUTTONS|RESIZE"],
+           lua_key="window_decorations"),
+    Option("background_opacity", "window", "Background Opacity", OptionType.FLOAT, 1.0, min_value=0.0, max_value=1.0,
+           lua_key="window_background_opacity"),
     Option("initial_cols", "window", "Initial Columns", OptionType.INT, 80, min_value=20, max_value=500),
     Option("initial_rows", "window", "Initial Rows", OptionType.INT, 24, min_value=5, max_value=200),
+    Option("adjust_window_size_when_changing_font_size", "window",
+           "Adjust Window on Font Change", OptionType.BOOL, True),
 
     # Tabs
     Option("enable_tab_bar", "tabs", "Enable Tab Bar", OptionType.BOOL, True),
@@ -73,6 +79,8 @@ SCHEMA: list[Option] = [
     Option("cursor_blink_ease_out", "cursor", "Blink Ease Out", OptionType.ENUM, "Constant",
            enum_values=["Constant", "Linear", "EaseIn", "EaseInOut", "EaseOut"]),
     Option("cursor_thickness", "cursor", "Cursor Thickness", OptionType.INT, 1, min_value=1, max_value=10),
+    Option("cell_width", "cursor", "Cell Width", OptionType.FLOAT, 1.0,
+           min_value=0.5, max_value=2.0),
 
     # Scrollback
     Option("scrollback_lines", "scrollback", "Scrollback Lines", OptionType.INT, 3500, min_value=0, max_value=1000000),
@@ -112,6 +120,13 @@ SCHEMA: list[Option] = [
     Option("enable_kitty_keyboard", "misc", "Kitty Keyboard Protocol", OptionType.BOOL, False),
     Option("quick_select_patterns", "misc", "Quick Select Patterns", OptionType.STRING_LIST, [],
            description="Regex patterns for Ctrl+Shift+Space quick select"),
+    Option("use_ime", "misc", "Use IME", OptionType.BOOL, True),
+    Option("ime_preedit_rendering", "misc", "IME Preedit Rendering", OptionType.ENUM,
+           "Builtin", enum_values=["Builtin", "Custom"]),
+    Option("command_palette_font_size", "misc", "Command Palette Font Size",
+           OptionType.FLOAT, 14.0, min_value=4.0, max_value=72.0),
+    Option("window_close_confirmation", "misc", "Close Confirmation", OptionType.ENUM,
+           "AlwaysPrompt", enum_values=["AlwaysPrompt", "NeverPrompt"]),
 ]
 
 CATEGORIES = [
@@ -133,6 +148,36 @@ def get_defaults() -> dict:
 
 def get_category_options(category: str) -> list[Option]:
     return [o for o in SCHEMA if o.category == category]
+
+
+def get_direct_lua_map() -> dict[str, list[tuple[str, str]]]:
+    """Build category -> [(json_key, lua_key)] for direct-mapped options.
+
+    Excludes font (special wezterm.font() call) and keybindings (special table).
+    """
+    result: dict[str, list[tuple[str, str]]] = {}
+    for opt in SCHEMA:
+        if opt.category == "font" or opt.type == OptionType.KEYBINDINGS:
+            continue
+        result.setdefault(opt.category, []).append((opt.key, opt.lua_key or opt.key))
+    return result
+
+
+def get_lua_key_to_json() -> dict[str, tuple[str, str]]:
+    """Build lua_key -> (category, json_key) reverse mapping for the importer.
+
+    Excludes font family/weight/size/line_height (parsed specially) and keybindings.
+    """
+    result: dict[str, tuple[str, str]] = {}
+    _font_special = {"family", "weight", "size", "line_height"}
+    for opt in SCHEMA:
+        if opt.type == OptionType.KEYBINDINGS:
+            continue
+        if opt.category == "font" and opt.key in _font_special:
+            continue
+        lua_key = opt.lua_key or opt.key
+        result[lua_key] = (opt.category, opt.key)
+    return result
 
 
 def validate_value(option: Option, value: Any) -> bool:

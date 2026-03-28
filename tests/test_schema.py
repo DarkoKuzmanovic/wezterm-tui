@@ -47,3 +47,17 @@ def test_get_defaults_returns_independent_copies():
     assert b["keybindings"] == []  # Should not be contaminated
     a["window"]["padding"]["left"] = 999
     assert b["window"]["padding"]["left"] == 0
+
+
+def test_additional_settings_exist():
+    keys = {o.key for o in SCHEMA}
+    additional = {
+        "adjust_window_size_when_changing_font_size",
+        "use_ime",
+        "command_palette_font_size",
+        "window_close_confirmation",
+        "ime_preedit_rendering",
+        "cell_width",
+    }
+    for key in additional:
+        assert key in keys, f"Missing setting: {key}"
