@@ -12,6 +12,7 @@ from wezterm_tui.lua_gen import generate_lua
 from wezterm_tui.importer import import_from_file
 from wezterm_tui.schema import CATEGORIES
 from wezterm_tui.screens import SCREEN_MAP
+from wezterm_tui.history import SettingsHistory
 
 
 class Sidebar(ListView):
@@ -93,6 +94,8 @@ class WezTermSettingsApp(App):
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+r", "reset", "Reset"),
         Binding("ctrl+i", "import_config", "Import"),
+        Binding("ctrl+z", "undo", "Undo"),
+        Binding("ctrl+y", "redo", "Redo"),
         Binding("ctrl+q", "quit", "Quit"),
     ]
 
@@ -102,6 +105,7 @@ class WezTermSettingsApp(App):
         self.json_path = self.config_dir / "settings.json"
         self.lua_path = self.config_dir / "settings.lua"
         self.settings = load_settings(self.json_path)
+        self.history = SettingsHistory(self.settings)
         self.active_category = "font"
         self.current_screen = None
 
@@ -122,11 +126,13 @@ class WezTermSettingsApp(App):
         sidebar = self.query_one("#sidebar", Sidebar)
         sidebar.index = 0
 
-    async def _switch_screen(self, category: str) -> None:
+    async def _switch_screen(self, category: str, _skip_history: bool = False) -> None:
         self.active_category = category
         if self.current_screen is not None:
             try:
                 self.current_screen.collect_values()
+                if not _skip_history:
+                    self.history.push(self.settings)
             except Exception as exc:
                 self.notify(
                     f"Could not save values: {exc}",
@@ -166,3 +172,21 @@ class WezTermSettingsApp(App):
         self.settings = import_from_file(wezterm_lua)
         await self._switch_screen(self.active_category)
         self.notify("Imported from wezterm.lua!", title="Import")
+
+    async def action_undo(self) -> None:
+        restored = self.history.undo()
+        if restored is None:
+            self.notify("Nothing to undo.", title="Undo")
+            return
+        self.settings = restored
+        await self._switch_screen(self.active_category, _skip_history=True)
+        self.notify("Undo.", title="WezTerm TUI")
+
+    async def action_redo(self) -> None:
+        restored = self.history.redo()
+        if restored is None:
+            self.notify("Nothing to redo.", title="Redo")
+            return
+        self.settings = restored
+        await self._switch_screen(self.active_category, _skip_history=True)
+        self.notify("Redo.", title="WezTerm TUI")
