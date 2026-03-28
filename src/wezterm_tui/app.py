@@ -8,6 +8,7 @@ from textual.widgets import Footer, Header, Static, Button, ListItem, ListView, 
 from textual.binding import Binding
 
 from wezterm_tui.config import load_settings, save_settings, get_config_dir
+from wezterm_tui.export import export_lua, export_json, export_base64
 from wezterm_tui.profiles import list_profiles, save_profile, load_profile
 from wezterm_tui.lua_gen import generate_lua
 from wezterm_tui.importer import import_from_file
@@ -98,6 +99,7 @@ class WezTermSettingsApp(App):
         Binding("ctrl+i", "import_config", "Import"),
         Binding("ctrl+d", "show_diff", "Diff"),
         Binding("ctrl+p", "profile_load", "Load Profile"),
+        Binding("ctrl+e", "export", "Export"),
         Binding("ctrl+z", "undo", "Undo"),
         Binding("ctrl+y", "redo", "Redo"),
         Binding("ctrl+q", "quit", "Quit"),
@@ -125,6 +127,7 @@ class WezTermSettingsApp(App):
             yield Button("Import [^I]", id="btn-import", variant="default")
             yield Button("Diff [^D]", id="btn-diff", variant="default")
             yield Button("Profiles [^P]", id="btn-profiles", variant="default")
+            yield Button("Export [^E]", id="btn-export", variant="default")
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -219,6 +222,61 @@ class WezTermSettingsApp(App):
             self.action_show_diff()
         elif event.button.id == "btn-profiles":
             await self.action_profile_load()
+        elif event.button.id == "btn-export":
+            await self.action_export()
+
+    async def action_export(self) -> None:
+        from textual.screen import ModalScreen
+
+        if self.current_screen:
+            self.current_screen.collect_values()
+
+        settings = self.settings
+
+        class ExportDialog(ModalScreen):
+            DEFAULT_CSS = """
+            ExportDialog {
+                align: center middle;
+            }
+            #export-dialog {
+                width: 80;
+                height: auto;
+                max-height: 90%;
+                border: thick $accent;
+                background: $surface;
+                padding: 1 2;
+            }
+            #export-output {
+                height: auto;
+                max-height: 20;
+                overflow-y: auto;
+                border: round $accent;
+                padding: 1;
+                margin: 1 0;
+            }
+            """
+
+            def compose(self):
+                with Vertical(id="export-dialog"):
+                    yield Static(" Export Settings ", classes="screen-title")
+                    with Horizontal():
+                        yield Button("Lua", id="exp-lua", variant="primary")
+                        yield Button("JSON", id="exp-json", variant="default")
+                        yield Button("Base64", id="exp-base64", variant="default")
+                    yield Static("Select a format above.", id="export-output")
+                    yield Button("Close", id="exp-close", variant="error")
+
+            def on_button_pressed(self, event):
+                if event.button.id == "exp-lua":
+                    self.query_one("#export-output", Static).update(export_lua(settings))
+                elif event.button.id == "exp-json":
+                    self.query_one("#export-output", Static).update(export_json(settings))
+                elif event.button.id == "exp-base64":
+                    self.query_one("#export-output", Static).update(export_base64(settings))
+                elif event.button.id == "exp-close":
+                    self.dismiss(None)
+
+        self.push_screen(ExportDialog())
 
     async def action_profile_load(self) -> None:
         from textual.screen import ModalScreen
