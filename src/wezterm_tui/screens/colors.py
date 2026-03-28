@@ -45,8 +45,8 @@ class ColorsScreen(VerticalScroll):
     def __init__(self, settings: dict, **kwargs):
         super().__init__(**kwargs)
         self.settings = settings
-        self.schemes = load_scheme_names()
-        self.scheme_palettes = load_scheme_palettes()
+        self.schemes: list[str] = []
+        self.scheme_palettes: dict[str, dict] = {}
         self.current_scheme = settings.get("colors", {}).get("color_scheme", "")
         self.preview_scheme = self.current_scheme
         self._displayed_schemes: list[str] = []
@@ -63,6 +63,8 @@ class ColorsScreen(VerticalScroll):
             yield Static(id="scheme-preview")
 
     async def on_mount(self) -> None:
+        self.schemes = load_scheme_names()
+        self.scheme_palettes = load_scheme_palettes()
         await self._populate_list(self.schemes)
         self._update_preview(self.preview_scheme)
 
@@ -178,9 +180,9 @@ class ColorsScreen(VerticalScroll):
 
         sample_header = Text("Terminal Sample", style=f"bold {foreground}")
         prompt = Text()
-        prompt.append("quzma", style=f"bold {accent}")
-        prompt.append("@endeavour", style=foreground)
-        prompt.append(" ~/source/wezterm-tui", style=f"italic {foreground}")
+        prompt.append("user", style=f"bold {accent}")
+        prompt.append("@host", style=foreground)
+        prompt.append(" ~/projects", style=f"italic {foreground}")
 
         command = Text()
         command.append("$ ", style=f"bold {cursor}")
