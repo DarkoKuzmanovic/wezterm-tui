@@ -13,6 +13,7 @@ from wezterm_tui.importer import import_from_file
 from wezterm_tui.schema import CATEGORIES
 from wezterm_tui.screens import SCREEN_MAP
 from wezterm_tui.history import SettingsHistory
+from wezterm_tui.diff import compute_diff, format_diff_text
 
 
 class Sidebar(ListView):
@@ -94,6 +95,7 @@ class WezTermSettingsApp(App):
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+r", "reset", "Reset"),
         Binding("ctrl+i", "import_config", "Import"),
+        Binding("ctrl+d", "show_diff", "Diff"),
         Binding("ctrl+z", "undo", "Undo"),
         Binding("ctrl+y", "redo", "Redo"),
         Binding("ctrl+q", "quit", "Quit"),
@@ -119,6 +121,7 @@ class WezTermSettingsApp(App):
             yield Button("Save [^S]", id="btn-save", variant="success")
             yield Button("Reset [^R]", id="btn-reset", variant="warning")
             yield Button("Import [^I]", id="btn-import", variant="default")
+            yield Button("Diff [^D]", id="btn-diff", variant="default")
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -190,3 +193,14 @@ class WezTermSettingsApp(App):
         self.settings = restored
         await self._switch_screen(self.active_category, _skip_history=True)
         self.notify("Redo.", title="WezTerm TUI")
+
+    def action_show_diff(self) -> None:
+        if self.current_screen:
+            self.current_screen.collect_values()
+        saved = load_settings(self.json_path)
+        changes = compute_diff(saved, self.settings)
+        text = format_diff_text(changes)
+        if not changes:
+            self.notify("No changes since last save.", title="Diff")
+        else:
+            self.notify(text, title=f"Changes ({len(changes)})", timeout=10)
