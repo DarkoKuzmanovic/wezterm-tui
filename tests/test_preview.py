@@ -134,3 +134,38 @@ def test_render_empty_settings():
     result = build_preview_text({}, {})
     text = result.plain
     assert "user@host" in text  # still renders with defaults
+
+
+from wezterm_tui.preview import PreviewPanel
+
+
+def test_preview_panel_initial_state():
+    """PreviewPanel renders a loading message before update_preview is called."""
+    panel = PreviewPanel()
+    renderable = panel.render()
+    assert "Loading preview" in renderable.plain
+
+
+def test_preview_panel_update_preview():
+    """After update_preview, render returns the terminal mock."""
+    from wezterm_tui.schema import get_defaults
+    panel = PreviewPanel()
+    settings = get_defaults()
+    panel.update_preview(settings, {})
+    renderable = panel.render()
+    assert "user@host" in renderable.plain
+
+
+def test_preview_panel_update_preserves_last():
+    """Calling update_preview twice shows the latest state."""
+    from wezterm_tui.schema import get_defaults
+    panel = PreviewPanel()
+
+    settings = get_defaults()
+    settings["cursor"]["default_cursor_style"] = "SteadyBar"
+    panel.update_preview(settings, {})
+    assert "|" in panel.render().plain
+
+    settings["cursor"]["default_cursor_style"] = "SteadyUnderline"
+    panel.update_preview(settings, {})
+    assert "\u2581" in panel.render().plain

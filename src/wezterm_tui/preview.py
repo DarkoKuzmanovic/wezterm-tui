@@ -5,6 +5,8 @@ from __future__ import annotations
 from rich.text import Text
 from rich.style import Style
 from rich.color import Color
+from textual.widgets import Static
+from textual.app import RenderableType
 
 _DEFAULT_FG = "#d4d4d4"
 _DEFAULT_BG = "#1e1e1e"
@@ -170,3 +172,27 @@ def build_preview_text(settings: dict, palettes: dict) -> Text:
     text.append(status, style=dim)
 
     return text
+
+
+class PreviewPanel(Static):
+    """Bottom-panel live preview showing a Rich Text terminal mock."""
+
+    DEFAULT_CSS = """
+    PreviewPanel {
+        height: 10;
+        border-top: tall $accent;
+        padding: 0 1;
+        background: $surface;
+    }
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._renderable: Text = Text("Loading preview...", style="dim")
+
+    def update_preview(self, settings: dict, palettes: dict) -> None:
+        """Rebuild the preview from current settings and palettes."""
+        self._renderable = build_preview_text(settings, palettes)
+
+    def render(self) -> RenderableType:
+        return self._renderable
