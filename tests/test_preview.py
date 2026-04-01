@@ -52,3 +52,85 @@ def test_blend_opacity_zero():
 def test_blend_opacity_half():
     # #1e1e1e = rgb(30,30,30), at 0.5 -> rgb(15,15,15) = #0f0f0f
     assert blend_opacity("#1e1e1e", 0.5) == "#0f0f0f"
+
+
+from wezterm_tui.preview import build_preview_text
+
+
+def test_render_with_default_settings():
+    from wezterm_tui.schema import get_defaults
+    settings = get_defaults()
+    palettes = {}  # will use fallback
+    result = build_preview_text(settings, palettes)
+    text = result.plain
+    assert "user@host" in text
+    assert "ls -la" in text
+    assert "src/" in text
+
+
+def test_render_with_custom_scheme():
+    from wezterm_tui.schema import get_defaults
+    settings = get_defaults()
+    settings["colors"]["color_scheme"] = "Dracula"
+    palettes = {
+        "Dracula": {
+            "foreground": "#f8f8f2",
+            "background": "#282a36",
+            "ansi": ["#000000", "#ff5555", "#50fa7b", "#f1fa8c",
+                     "#bd93f9", "#ff79c6", "#8be9fd", "#bfbfbf"],
+            "brights": ["#4d4d4d", "#ff6e67", "#5af78e", "#f4f99d",
+                        "#caa9fa", "#ff92d0", "#9aedfe", "#e6e6e6"],
+        }
+    }
+    result = build_preview_text(settings, palettes)
+    text = result.plain
+    assert "user@host" in text
+    assert result._spans  # Rich Text object has styled spans
+
+
+def test_render_unknown_scheme():
+    from wezterm_tui.schema import get_defaults
+    settings = get_defaults()
+    settings["colors"]["color_scheme"] = "NonExistent"
+    result = build_preview_text(settings, {})
+    text = result.plain
+    assert "(unknown scheme)" in text
+    assert "user@host" in text
+
+
+def test_render_cursor_style_block():
+    from wezterm_tui.schema import get_defaults
+    settings = get_defaults()
+    settings["cursor"]["default_cursor_style"] = "SteadyBlock"
+    result = build_preview_text(settings, {})
+    assert "\u2588" in result.plain  # block char
+
+
+def test_render_cursor_style_bar():
+    from wezterm_tui.schema import get_defaults
+    settings = get_defaults()
+    settings["cursor"]["default_cursor_style"] = "SteadyBar"
+    result = build_preview_text(settings, {})
+    assert "|" in result.plain
+
+
+def test_render_cursor_style_underline():
+    from wezterm_tui.schema import get_defaults
+    settings = get_defaults()
+    settings["cursor"]["default_cursor_style"] = "SteadyUnderline"
+    result = build_preview_text(settings, {})
+    assert "\u2581" in result.plain  # underline char
+
+
+def test_render_opacity_affects_background():
+    from wezterm_tui.schema import get_defaults
+    settings = get_defaults()
+    settings["window"]["background_opacity"] = 0.5
+    result = build_preview_text(settings, {})
+    assert "user@host" in result.plain
+
+
+def test_render_empty_settings():
+    result = build_preview_text({}, {})
+    text = result.plain
+    assert "user@host" in text  # still renders with defaults
