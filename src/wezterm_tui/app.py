@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Header, Static, Button, ListItem, ListView, Input, Label
+from textual.widgets import Footer, Header, Static, Button, ListItem, ListView, Input, Label, Select, Switch
 from textual.binding import Binding
 
 from wezterm_tui.config import load_settings, save_settings, get_config_dir
@@ -16,6 +16,8 @@ from wezterm_tui.schema import CATEGORIES
 from wezterm_tui.screens import SCREEN_MAP
 from wezterm_tui.history import SettingsHistory
 from wezterm_tui.diff import compute_diff, format_diff_text
+from wezterm_tui.preview import PreviewPanel
+from wezterm_tui.color_schemes import load_scheme_palettes
 
 
 class Sidebar(ListView):
@@ -33,6 +35,9 @@ class WezTermSettingsApp(App):
     CSS = """
     Screen {
         layout: vertical;
+    }
+    #app-body {
+        height: 1fr;
     }
     #main-container {
         layout: horizontal;
@@ -115,13 +120,17 @@ class WezTermSettingsApp(App):
         self.history = SettingsHistory(self.settings)
         self.active_category = "font"
         self.current_screen = None
+        self._palettes: dict = {}
+        self._preview_timer = None
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Horizontal(id="main-container"):
-            yield Sidebar(id="sidebar")
-            with Vertical(id="content-area"):
-                pass
+        with Vertical(id="app-body"):
+            with Horizontal(id="main-container"):
+                yield Sidebar(id="sidebar")
+                with Vertical(id="content-area"):
+                    pass
+            yield PreviewPanel(id="preview-panel")
         with Horizontal(id="footer-bar"):
             yield Button("Save [^S]", id="btn-save", variant="success")
             yield Button("Reset [^R]", id="btn-reset", variant="warning")
@@ -139,11 +148,54 @@ class WezTermSettingsApp(App):
         await self._switch_screen("font")
         sidebar = self.query_one("#sidebar", Sidebar)
         sidebar.index = 0
+        self.run_worker(self._load_palettes_async, thread=True)
+
+    async def _load_palettes_async(self) -> None:
+        """Load color palettes in background thread to avoid blocking startup."""
+        self._palettes = load_scheme_palettes()
+        self.call_from_thread(self._refresh_preview)
+
+    def _refresh_preview(self) -> None:
+        """Update the preview panel with current settings."""
+        try:
+            panel = self.query_one("#preview-panel", PreviewPanel)
+            panel.update_preview(self.settings, self._palettes)
+            panel.refresh()
+        except Exception:
+            pass  # Preview is non-critical; never crash the app
+
+    def _schedule_preview_refresh(self) -> None:
+        """Schedule a debounced preview update (300ms)."""
+        if self._preview_timer is not None:
+            self._preview_timer.stop()
+        self._preview_timer = self.set_timer(
+            0.3,
+            self._do_preview_refresh,
+        )
+
+    def _do_preview_refresh(self) -> None:
+        """Collect current widget values and refresh the preview."""
+        self._preview_timer = None
+        if self.current_screen:
+            try:
+                self.current_screen.collect_values()
+            except Exception:
+                pass  # Screen may be transitioning
+        self._refresh_preview()
 
     def watch_theme(self, theme: str) -> None:
         if self._theme_ready:
             self.settings.setdefault("_app", {})["theme"] = theme
             save_settings(self.json_path, self.settings)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        self._schedule_preview_refresh()
+
+    def on_switch_changed(self, event: Switch.Changed) -> None:
+        self._schedule_preview_refresh()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        self._schedule_preview_refresh()
 
     async def _switch_screen(self, category: str, _skip_history: bool = False) -> None:
         self.active_category = category
@@ -163,12 +215,16 @@ class WezTermSettingsApp(App):
         screen_class = SCREEN_MAP[category]
         self.current_screen = screen_class(self.settings, id="active-screen")
         await content.mount(self.current_screen)
+        self._refresh_preview()
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         item_id = event.item.id
         if item_id and item_id.startswith("cat-"):
             category = item_id[4:]
             await self._switch_screen(category)
+        else:
+            # Non-sidebar ListView selection (e.g. ColorsScreen scheme picker)
+            self._schedule_preview_refresh()
 
     def action_save(self) -> None:
         if self.current_screen:
