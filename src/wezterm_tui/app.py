@@ -16,6 +16,8 @@ from wezterm_tui.schema import CATEGORIES
 from wezterm_tui.screens import SCREEN_MAP
 from wezterm_tui.history import SettingsHistory
 from wezterm_tui.diff import compute_diff, format_diff_text
+from wezterm_tui.preview import PreviewPanel
+from wezterm_tui.color_schemes import load_scheme_palettes
 
 
 class Sidebar(ListView):
@@ -33,6 +35,9 @@ class WezTermSettingsApp(App):
     CSS = """
     Screen {
         layout: vertical;
+    }
+    #app-body {
+        height: 1fr;
     }
     #main-container {
         layout: horizontal;
@@ -115,13 +120,17 @@ class WezTermSettingsApp(App):
         self.history = SettingsHistory(self.settings)
         self.active_category = "font"
         self.current_screen = None
+        self._palettes: dict = {}
+        self._preview_timer = None
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Horizontal(id="main-container"):
-            yield Sidebar(id="sidebar")
-            with Vertical(id="content-area"):
-                pass
+        with Vertical(id="app-body"):
+            with Horizontal(id="main-container"):
+                yield Sidebar(id="sidebar")
+                with Vertical(id="content-area"):
+                    pass
+            yield PreviewPanel(id="preview-panel")
         with Horizontal(id="footer-bar"):
             yield Button("Save [^S]", id="btn-save", variant="success")
             yield Button("Reset [^R]", id="btn-reset", variant="warning")
@@ -139,6 +148,17 @@ class WezTermSettingsApp(App):
         await self._switch_screen("font")
         sidebar = self.query_one("#sidebar", Sidebar)
         sidebar.index = 0
+        self._palettes = load_scheme_palettes()
+        self._refresh_preview()
+
+    def _refresh_preview(self) -> None:
+        """Update the preview panel with current settings."""
+        try:
+            panel = self.query_one("#preview-panel", PreviewPanel)
+            panel.update_preview(self.settings, self._palettes)
+            panel.refresh()
+        except Exception:
+            pass  # Preview is non-critical; never crash the app
 
     def watch_theme(self, theme: str) -> None:
         if self._theme_ready:
