@@ -160,10 +160,38 @@ class WezTermSettingsApp(App):
         except Exception:
             pass  # Preview is non-critical; never crash the app
 
+    def _schedule_preview_refresh(self) -> None:
+        """Schedule a debounced preview update (300ms)."""
+        if self._preview_timer is not None:
+            self._preview_timer.stop()
+        self._preview_timer = self.set_timer(
+            0.3,
+            self._do_preview_refresh,
+        )
+
+    def _do_preview_refresh(self) -> None:
+        """Collect current widget values and refresh the preview."""
+        self._preview_timer = None
+        if self.current_screen:
+            try:
+                self.current_screen.collect_values()
+            except Exception:
+                pass  # Screen may be transitioning
+        self._refresh_preview()
+
     def watch_theme(self, theme: str) -> None:
         if self._theme_ready:
             self.settings.setdefault("_app", {})["theme"] = theme
             save_settings(self.json_path, self.settings)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        self._schedule_preview_refresh()
+
+    def on_switch_changed(self, event) -> None:
+        self._schedule_preview_refresh()
+
+    def on_select_changed(self, event) -> None:
+        self._schedule_preview_refresh()
 
     async def _switch_screen(self, category: str, _skip_history: bool = False) -> None:
         self.active_category = category
@@ -183,6 +211,7 @@ class WezTermSettingsApp(App):
         screen_class = SCREEN_MAP[category]
         self.current_screen = screen_class(self.settings, id="active-screen")
         await content.mount(self.current_screen)
+        self._refresh_preview()
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         item_id = event.item.id
@@ -202,6 +231,7 @@ class WezTermSettingsApp(App):
         self.settings = load_settings(self.json_path)
         await self._switch_screen(self.active_category)
         self.notify("Settings reset to last save.", title="WezTerm TUI")
+        self._refresh_preview()
 
     async def action_import_config(self) -> None:
         wezterm_lua = self.config_dir / "wezterm.lua"
@@ -211,6 +241,7 @@ class WezTermSettingsApp(App):
         self.settings = import_from_file(wezterm_lua)
         await self._switch_screen(self.active_category)
         self.notify("Imported from wezterm.lua!", title="Import")
+        self._refresh_preview()
 
     async def action_undo(self) -> None:
         restored = self.history.undo()
@@ -220,6 +251,7 @@ class WezTermSettingsApp(App):
         self.settings = restored
         await self._switch_screen(self.active_category, _skip_history=True)
         self.notify("Undo.", title="WezTerm TUI")
+        self._refresh_preview()
 
     async def action_redo(self) -> None:
         restored = self.history.redo()
@@ -229,6 +261,7 @@ class WezTermSettingsApp(App):
         self.settings = restored
         await self._switch_screen(self.active_category, _skip_history=True)
         self.notify("Redo.", title="WezTerm TUI")
+        self._refresh_preview()
 
     def action_show_diff(self) -> None:
         if self.current_screen:
