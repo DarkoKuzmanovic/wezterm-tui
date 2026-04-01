@@ -2,6 +2,18 @@
 
 All notable changes to wezterm-tui will be documented in this file.
 
+## [1.1.0] - 2026-04-01
+
+### Added
+
+- Live preview pane: a bottom-panel terminal mock that updates in real-time as you change visual settings (font, colors, cursor, window opacity/padding). Uses actual color scheme palettes from WezTerm with Rich Text rendering.
+- Debounced preview updates (~300ms) for smooth, flicker-free feedback while editing.
+- Preview responds to color scheme selection in the Colors screen.
+
+### Changed
+
+- Color palette loading moved to a background thread to avoid blocking app startup.
+
 ## [1.0.0] - 2026-03-28
 
 ### Added

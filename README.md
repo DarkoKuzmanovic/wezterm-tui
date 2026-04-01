@@ -16,6 +16,11 @@ A terminal UI for managing [WezTerm](https://wezfurlong.org/wezterm/) settings. 
 - **Import existing config** -- reads your current `wezterm.lua` and imports settings
 - **Lua generation** -- saves a clean, commented `settings.lua` you can `require()` from your config
 - **Validation** -- type checking, range constraints, and enum validation on all 42 settings
+- **Live preview** -- bottom-panel terminal mock that updates in real-time as you tweak font, colors, cursor, and window settings
+- **Undo/redo** -- track changes and revert with `Ctrl+Z` / `Ctrl+Y`
+- **Settings profiles** -- save and load named configurations with `Ctrl+P`
+- **Diff view** -- review pending changes before saving with `Ctrl+D`
+- **Export/share** -- export settings as Lua, JSON, or base64 with `Ctrl+E`
 - **Safe saves** -- atomic writes with `.json.bak` backup before each save
 - **Settings sanitization** -- invalid or missing values are auto-corrected to defaults on load
 
@@ -87,6 +92,11 @@ In Colors, move through the scheme list to preview a theme before selecting it.
 | `Ctrl+S` | Save settings             |
 | `Ctrl+R` | Reset to last save        |
 | `Ctrl+I` | Import from `wezterm.lua` |
+| `Ctrl+D` | View pending changes diff |
+| `Ctrl+Z` | Undo                      |
+| `Ctrl+Y` | Redo                      |
+| `Ctrl+P` | Load/save profiles        |
+| `Ctrl+E` | Export settings            |
 | `Ctrl+Q` | Quit                      |
 
 ### Where settings are stored
