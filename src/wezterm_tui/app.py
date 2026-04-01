@@ -148,8 +148,12 @@ class WezTermSettingsApp(App):
         await self._switch_screen("font")
         sidebar = self.query_one("#sidebar", Sidebar)
         sidebar.index = 0
+        self.run_worker(self._load_palettes_async, thread=True)
+
+    async def _load_palettes_async(self) -> None:
+        """Load color palettes in background thread to avoid blocking startup."""
         self._palettes = load_scheme_palettes()
-        self._refresh_preview()
+        self.call_from_thread(self._refresh_preview)
 
     def _refresh_preview(self) -> None:
         """Update the preview panel with current settings."""
@@ -218,6 +222,9 @@ class WezTermSettingsApp(App):
         if item_id and item_id.startswith("cat-"):
             category = item_id[4:]
             await self._switch_screen(category)
+        else:
+            # Non-sidebar ListView selection (e.g. ColorsScreen scheme picker)
+            self._schedule_preview_refresh()
 
     def action_save(self) -> None:
         if self.current_screen:
