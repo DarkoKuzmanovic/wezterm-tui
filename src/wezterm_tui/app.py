@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Header, Static, Button, ListItem, ListView, Input, Label
+from textual.widgets import Footer, Header, Static, Button, ListItem, ListView, Input, Label, Select, Switch
 from textual.binding import Binding
 
 from wezterm_tui.config import load_settings, save_settings, get_config_dir
@@ -187,10 +187,10 @@ class WezTermSettingsApp(App):
     def on_input_changed(self, event: Input.Changed) -> None:
         self._schedule_preview_refresh()
 
-    def on_switch_changed(self, event) -> None:
+    def on_switch_changed(self, event: Switch.Changed) -> None:
         self._schedule_preview_refresh()
 
-    def on_select_changed(self, event) -> None:
+    def on_select_changed(self, event: Select.Changed) -> None:
         self._schedule_preview_refresh()
 
     async def _switch_screen(self, category: str, _skip_history: bool = False) -> None:
@@ -231,7 +231,6 @@ class WezTermSettingsApp(App):
         self.settings = load_settings(self.json_path)
         await self._switch_screen(self.active_category)
         self.notify("Settings reset to last save.", title="WezTerm TUI")
-        self._refresh_preview()
 
     async def action_import_config(self) -> None:
         wezterm_lua = self.config_dir / "wezterm.lua"
@@ -241,7 +240,6 @@ class WezTermSettingsApp(App):
         self.settings = import_from_file(wezterm_lua)
         await self._switch_screen(self.active_category)
         self.notify("Imported from wezterm.lua!", title="Import")
-        self._refresh_preview()
 
     async def action_undo(self) -> None:
         restored = self.history.undo()
@@ -251,7 +249,6 @@ class WezTermSettingsApp(App):
         self.settings = restored
         await self._switch_screen(self.active_category, _skip_history=True)
         self.notify("Undo.", title="WezTerm TUI")
-        self._refresh_preview()
 
     async def action_redo(self) -> None:
         restored = self.history.redo()
@@ -261,7 +258,6 @@ class WezTermSettingsApp(App):
         self.settings = restored
         await self._switch_screen(self.active_category, _skip_history=True)
         self.notify("Redo.", title="WezTerm TUI")
-        self._refresh_preview()
 
     def action_show_diff(self) -> None:
         if self.current_screen:
