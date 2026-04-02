@@ -57,12 +57,12 @@ check_python() {
 
 install_with_uv() {
     info "Installing with uv..."
-    uv tool install "wezterm-tui @ git+${REPO}"
+    uv tool install --force "wezterm-tui @ git+${REPO}"
 }
 
 install_with_pipx() {
     info "Installing with pipx..."
-    pipx install "git+${REPO}"
+    pipx install --force "git+${REPO}"
 }
 
 install_with_pip() {
